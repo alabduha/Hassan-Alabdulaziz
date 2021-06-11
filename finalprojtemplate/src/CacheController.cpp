@@ -155,7 +155,7 @@ void CacheController::runTracefile() {
 	outfile.close();
 
     //delete the cache array
-    for (unsigned long int i = 0; i<ci.numberSets; i++){
+    for (unsigned long int i = 0; i < ci.numberSets; i++){
         delete[] Cache[i];
     }
     delete[] Cache;
@@ -227,11 +227,13 @@ void CacheController::cacheAccess(CacheResponse* response, bool isWrite, unsigne
                 Cache[ai.setIndex][count].LRU_data = 0;
             }
 
-            //Update Dirty Bit
+            //Update DirtyBit
             if ((isWrite) && (ci.wp == WritePolicy::WriteBack)){
                 Cache[ai.setIndex][count].dirtyBit = 1;
             }
+            //a hit
             response->hits = true;
+            break;
         }
         count++;
     }
@@ -251,9 +253,10 @@ void CacheController::cacheAccess(CacheResponse* response, bool isWrite, unsigne
              count++;
              //Check for empty block
              if (Cache[ai.setIndex][count].validBit == 0) {
+
+                 Cache[ai.setIndex][count].setIndex = ai.setIndex;
                  Cache[ai.setIndex][count].validBit = 1;
                  Cache[ai.setIndex][count].tag = ai.tag;
-                 Cache[ai.setIndex][count].setIndex = ai.setIndex;
 
                  Empty = true;
 
@@ -275,32 +278,35 @@ void CacheController::cacheAccess(CacheResponse* response, bool isWrite, unsigne
                 if ((isWrite) && (ci.wp == WritePolicy::WriteBack)){
                     Cache[ai.setIndex][count].dirtyBit = 1;
                 }
-
+                //empty block was found exit loop
                 break;
             }
+
         }while(count<ci.associativity);
 
          count2=0;
-        //Use proper Replacement Policy
+        //if there was not a hit and not empty spaces
         if (!Empty){
 
-            //LRU
+            //LRU implementation
             if (ci.rp == ReplacementPolicy::LRU) {
                 unsigned int leastUsed = 0;
                 unsigned int Counter3 = 0;
 
                 //Find least used
-                for (unsigned int i=0; i < ci.associativity; i++){
-                    if (Cache[ai.setIndex][i].LRU_data > Counter3){
-                        Counter3 = Cache[ai.setIndex][i].LRU_data;
-                        leastUsed = i;
+                while (count2 < ci.associativity){
+                    if (Cache[ai.setIndex][count2].LRU_data > Counter3){
+                        Counter3 = Cache[ai.setIndex][count2].LRU_data;
+                        leastUsed = count2;
                     }
+                    count2++;
                 }
 
                 Cache[ai.setIndex][leastUsed].tag = ai.tag;
 
                 //Update LRUcounters
 
+                count2 = 0;
                 if (ci.rp == ReplacementPolicy::LRU) {
                     while (count2<ci.associativity){
 
@@ -336,7 +342,7 @@ void CacheController::cacheAccess(CacheResponse* response, bool isWrite, unsigne
                 if ((ci.wp == WritePolicy::WriteBack) && (Cache[ai.setIndex][rand_num].dirtyBit == 1)){
                         response->dirtyEvictions = true;
 
-                        //Reset dirty bit
+                        //Reset
                         if (!isWrite){
                             Cache[ai.setIndex][rand_num].dirtyBit = 0;
                         }
